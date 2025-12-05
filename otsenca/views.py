@@ -1,23 +1,28 @@
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-import json
-from .models import Product, Review
-from .serializers import ProductSerializer, ReviewSerializer
+from rest_framework.pagination import PageNumberPagination
+from .models import Article, Comment
+from .serializers import ArticleSerializer, CommentSerializer
+
+
+class CommentPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 @api_view(['GET', 'POST'])
-def review_list(request):
+def comment_list(request):
     if request.method == 'GET':
-        reviews = Review.objects.all()
-        serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        comments = Comment.objects.all().order_by('-created_at')
+        paginator = CommentPagination()
+        paginated_comments = paginator.paginate_queryset(comments, request)
+        serializer = CommentSerializer(paginated_comments, many=True)
+        return paginator.get_paginated_response(serializer.data)
     
     elif request.method == 'POST':
-        serializer = ReviewSerializer(data=request.data)
+        serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -25,45 +30,49 @@ def review_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def review_detail(request, pk):
+def comment_detail(request, pk):
     try:
-        review = Review.objects.get(pk=pk)
-    except Review.DoesNotExist:
+        comment = Comment.objects.get(pk=pk)
+    except Comment.DoesNotExist:
         return Response(
-            {'error': 'Review not found'},
+            {'error': 'Comment not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     
     if request.method == 'GET':
-        serializer = ReviewSerializer(review)
+        serializer = CommentSerializer(comment)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     elif request.method == 'PUT':
-        serializer = ReviewSerializer(review, data=request.data, partial=True)
+        serializer = CommentSerializer(comment, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
-        review.delete()
+        comment.delete()
         return Response(
-            {'message': 'Review deleted successfully'},
+            {'message': 'Comment deleted successfully'},
             status=status.HTTP_204_NO_CONTENT
         )
 
 
-def product_list(request):
-    products = Product.objects.all()
-    serializer = ProductSerializer(products, many=True)
-    return JsonResponse({'products': serializer.data})
+@api_view(['GET'])
+def article_list(request):
+    articles = Article.objects.all()
+    serializer = ArticleSerializer(articles, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-def product_detail(request, product_id):
+@api_view(['GET'])
+def article_detail(request, pk):
     try:
-        product = Product.objects.get(id=product_id)
-    except Product.DoesNotExist:
-        return JsonResponse({'error': 'Product not found'}, status=404)
-    
-    serializer = ProductSerializer(product)
-    return JsonResponse({'product': serializer.data})
+        article = Article.objects.get(pk=pk)
+    except Article.DoesNotExist:
+        return Response(
+            {'error': 'Article not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = ArticleSerializer(article)
+    return Response(serializer.data, status=status.HTTP_200_OK)

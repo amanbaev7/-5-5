@@ -1,25 +1,25 @@
-from .models import Product, Review
+from .models import Article, Comment
 from rest_framework import serializers
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ArticleSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Product
-        fields = ['id', 'name', 'price']
+        model = Article
+        fields = ['id', 'title', 'content', 'created_at']
 
 
-class ReviewSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
-    product_id = serializers.IntegerField(write_only=True, source='product')
+class CommentSerializer(serializers.ModelSerializer):
+    article = ArticleSerializer(read_only=True)
+    article_id = serializers.IntegerField(write_only=True, source='article')
     
     class Meta:
-        model = Review
-        fields = ['id', 'product', 'product_id', 'username', 'rating', 'text', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        model = Comment
+        fields = ['id', 'article', 'article_id', 'username', 'message', 'likes', 'created_at']
+        read_only_fields = ['id', 'likes', 'created_at']
     
-    def validate_rating(self, value):
-        if not (1 <= value <= 5):
-            raise serializers.ValidationError("Rating must be between 1 and 5")
+    def validate_message(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Message cannot be empty")
         return value
         
         
